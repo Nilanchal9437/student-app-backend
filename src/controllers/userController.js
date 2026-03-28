@@ -1,7 +1,5 @@
-const crypto = require("crypto");
 const User = require("../models/User");
 const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
-const { sendPasswordResetEmail } = require("../utils/email");
 
 // ─── Helper — send token response ────────────────────────────────────────────
 const sendTokenResponse = (user, statusCode, res, message = "Success") => {
@@ -178,7 +176,6 @@ const resetPassword = async (req, res) => {
   });
 };
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // @route   GET /api/users/profile
 // @desc    Get authenticated user's profile
@@ -237,7 +234,7 @@ const updateProfile = async (req, res, next) => {
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     res.status(200).json({
