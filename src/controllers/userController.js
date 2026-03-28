@@ -3,8 +3,8 @@ const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
 
 // ─── Helper — send token response ────────────────────────────────────────────
 const sendTokenResponse = (user, statusCode, res, message = "Success") => {
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
 
   res.status(statusCode).json({
     success: true,

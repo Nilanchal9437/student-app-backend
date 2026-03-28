@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
+const { Server: SocketIOServer } = require("socket.io");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
@@ -10,7 +12,9 @@ const userRoutes = require("./routes/userRoutes");
 const examRoutes = require("./routes/examRoutes");
 const testRoutes = require("./routes/testRoutes");
 const resultRoutes = require("./routes/resultRoutes");
+const communityRoutes = require("./routes/communityRoutes");
 const errorHandler = require("./middleware/errorHandler");
+const { registerChatHandlers } = require("./socket/chatHandler");
 
 // ─── Connect to MongoDB ───────────────────────────────────────────────────────
 connectDB();
@@ -21,36 +25,29 @@ const app = express();
 app.use(helmet());
 
 // CORS — allow all origins in development (Expo Go, emulator, physical device)
-// In production, replace the origin function with your exact domain.
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl) or any origin in dev
-      if (!origin || process.env.NODE_ENV === "development") {
-        return callback(null, true);
-      }
-      // Production whitelist — add your domain here
-      const whitelist = ["https://your-production-domain.com"];
-      if (whitelist.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || process.env.NODE_ENV === "development") {
+      return callback(null, true);
+    }
+    const whitelist = ["https://your-production-domain.com"];
+    if (whitelist.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+app.use(cors(corsOptions));
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // limit to 20 login/register attempts per window
-  message: {
-    success: false,
-    message: "Too many requests. Please try again after 15 minutes.",
-  },
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: "Too many requests. Please try again after 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -79,28 +76,43 @@ app.use("/api/users", authLimiter, userRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/tests", testRoutes);
 app.use("/api/results", resultRoutes);
+app.use("/api/communities", communityRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.method} ${req.originalUrl} not found.`,
-  });
+  res.status(404).json({ success: false, message: `Route ${req.method} ${req.originalUrl} not found.` });
 });
 
 // ─── Global Error Handler ────────────────────────────────────────────────────
 app.use(errorHandler);
 
+// ─── HTTP Server (wraps Express so Socket.IO can share it) ───────────────────
+const server = http.createServer(app);
+
+// ─── Socket.IO ───────────────────────────────────────────────────────────────
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: "*", // in production, restrict to your app's domain/IP
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  // Allow mobile clients where polling is more reliable than websocket upgrades
+  transports: ["websocket", "polling"],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+});
+
+// Register all chat event handlers
+registerChatHandlers(io);
+
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-// Listen on 0.0.0.0 so phones/emulators on the same LAN can reach the API
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    `\n🚀 Server running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`
-  );
-  console.log(`   API Base URL : http://localhost:${PORT}/api`);
-  console.log(`   Network URL  : http://192.168.31.208:${PORT}/api`);
-  console.log(`   Health Check : http://localhost:${PORT}/health\n`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`\n🚀 Server running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
+  console.log(`   API Base URL  : http://localhost:${PORT}/api`);
+  console.log(`   Network URL   : http://192.168.31.208:${PORT}/api`);
+  console.log(`   Socket.IO     : ws://192.168.31.208:${PORT}`);
+  console.log(`   Health Check  : http://localhost:${PORT}/health\n`);
 });
 
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
