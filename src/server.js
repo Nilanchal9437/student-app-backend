@@ -7,6 +7,9 @@ const rateLimit = require("express-rate-limit");
 
 const connectDB = require("./config/db");
 const userRoutes = require("./routes/userRoutes");
+const examRoutes = require("./routes/examRoutes");
+const testRoutes = require("./routes/testRoutes");
+const resultRoutes = require("./routes/resultRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 // ─── Connect to MongoDB ───────────────────────────────────────────────────────
@@ -73,6 +76,9 @@ app.get("/health", (req, res) => {
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use("/api/users", authLimiter, userRoutes);
+app.use("/api/exams", examRoutes);
+app.use("/api/tests", testRoutes);
+app.use("/api/results", resultRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
