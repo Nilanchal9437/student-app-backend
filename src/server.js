@@ -31,7 +31,12 @@ const corsOptions = {
     if (!origin || process.env.NODE_ENV === "development") {
       return callback(null, true);
     }
-    const whitelist = ["https://student-app-backend-two.vercel.app"];
+    // Whitelist production domains
+    const whitelist = [
+      "https://student-app-backend-two.vercel.app",
+      "https://expo.dev",
+      "https://expo.io",
+    ];
     if (whitelist.includes(origin)) {
       callback(null, true);
     } else {
@@ -109,12 +114,22 @@ registerChatHandlers(io);
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
+const NODE_ENV = process.env.NODE_ENV || "development";
+const isProduction = NODE_ENV === "production";
+
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`\n🚀 Server running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
-  console.log(`   API Base URL  : http://localhost:${PORT}/api`);
-  console.log(`   Network URL   : http://192.168.31.208:${PORT}/api`);
-  console.log(`   Socket.IO     : ws://192.168.31.208:${PORT}`);
-  console.log(`   Health Check  : http://localhost:${PORT}/health\n`);
+  console.log(`\n🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
+  
+  if (isProduction) {
+    console.log(`   API Base URL    : https://student-app-backend-two.vercel.app/api`);
+    console.log(`   Health Check    : https://student-app-backend-two.vercel.app/health`);
+  } else {
+    console.log(`   API Base URL    : http://localhost:${PORT}/api`);
+    console.log(`   Network URL     : http://192.168.31.208:${PORT}/api`);
+    console.log(`   Socket.IO       : ws://192.168.31.208:${PORT}`);
+    console.log(`   Health Check    : http://localhost:${PORT}/health`);
+  }
+  console.log("");
 });
 
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
