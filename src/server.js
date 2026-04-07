@@ -33,7 +33,7 @@ const corsOptions = {
     }
     // Whitelist production domains
     const whitelist = [
-      "https://student-app-backend-two.vercel.app",
+      "https://student-app-backend-cmtu.onrender.com",
       "https://expo.dev",
       "https://expo.io",
     ];
@@ -121,8 +121,9 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`\n🚀 Server running in ${NODE_ENV} mode on port ${PORT}`);
   
   if (isProduction) {
-    console.log(`   API Base URL    : https://student-app-backend-two.vercel.app/api`);
-    console.log(`   Health Check    : https://student-app-backend-two.vercel.app/health`);
+    console.log(`   API Base URL    : https://student-app-backend-cmtu.onrender.com/api`);
+    console.log(`   Health Check    : https://student-app-backend-cmtu.onrender.com/health`);
+    console.log(`   WebSocket       : wss://student-app-backend-cmtu.onrender.com`);
   } else {
     console.log(`   API Base URL    : http://localhost:${PORT}/api`);
     console.log(`   Network URL     : http://192.168.31.208:${PORT}/api`);
