@@ -10,6 +10,8 @@ const {
   updateProfile,
   changePassword,
   getReferralStats,
+  updateBankAccount,
+  getBankAccount,
 } = require("../controllers/userController");
 
 const { protect } = require("../middleware/auth");
@@ -39,5 +41,11 @@ router.put("/change-password", protect, changePassword);
 
 // GET  /api/users/referral-stats  — get referral coins and count
 router.get("/referral-stats", protect, getReferralStats);
+
+// PUT  /api/users/bank-account  — update Nigerian bank account details
+router.put("/bank-account", protect, updateBankAccount);
+
+// GET  /api/users/bank-account  — get Nigerian bank account details
+router.get("/bank-account", protect, getBankAccount);
 
 module.exports = router;

@@ -95,6 +95,31 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+
+    // ── Nigerian Bank Account Details ──────────────────────────────────────────
+    bankAccount: {
+      accountName: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      accountNumber: {
+        type: String,
+        trim: true,
+        default: "",
+        match: [/^\d{10}$/, "Account number must be 10 digits"],
+      },
+      bankName: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      bankCode: {
+        type: String,
+        trim: true,
+        default: "", // e.g., "058" for GTBank, "033" for Access Bank
+      },
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt
@@ -136,6 +161,7 @@ userSchema.methods.toPublicJSON = function () {
     className: this.className,
     role: this.role,
     lastLoginAt: this.lastLoginAt,
+    bankAccount: this.bankAccount || {},
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

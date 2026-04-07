@@ -367,6 +367,97 @@ const getReferralStats = async (req, res, next) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// @route   PUT /api/users/bank-account
+// @desc    Update or add Nigerian bank account details
+// @access  Private
+// @body    { accountName, accountNumber, bankName, bankCode }
+// ─────────────────────────────────────────────────────────────────────────────
+const updateBankAccount = async (req, res, next) => {
+  try {
+    const { accountName, accountNumber, bankName, bankCode } = req.body;
+
+    // Validation
+    if (!accountName || !accountNumber || !bankName || !bankCode) {
+      return res.status(400).json({
+        success: false,
+        message: "All bank account fields are required (accountName, accountNumber, bankName, bankCode).",
+      });
+    }
+
+    // Validate account number (must be 10 digits)
+    if (!/^\d{10}$/.test(accountNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: "Account number must be exactly 10 digits.",
+      });
+    }
+
+    // Update bank account details
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $set: {
+          "bankAccount.accountName": accountName.trim(),
+          "bankAccount.accountNumber": accountNumber.trim(),
+          "bankAccount.bankName": bankName.trim(),
+          "bankAccount.bankCode": bankCode.trim(),
+        },
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Bank account details updated successfully!",
+      data: {
+        user: updatedUser.toPublicJSON(),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @route   GET /api/users/bank-account
+// @desc    Get authenticated user's Nigerian bank account details
+// @access  Private
+// ─────────────────────────────────────────────────────────────────────────────
+const getBankAccount = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    // Check if bank account details exist
+    if (
+      !user.bankAccount ||
+      !user.bankAccount.accountNumber
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: "No bank account details found. Please add your bank account.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Bank account details retrieved successfully.",
+      data: {
+        bankAccount: user.bankAccount,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -376,4 +467,6 @@ module.exports = {
   updateProfile,
   changePassword,
   getReferralStats,
+  updateBankAccount,
+  getBankAccount,
 };
