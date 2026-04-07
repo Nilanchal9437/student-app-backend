@@ -13,6 +13,7 @@ const examRoutes = require("./routes/examRoutes");
 const testRoutes = require("./routes/testRoutes");
 const resultRoutes = require("./routes/resultRoutes");
 const communityRoutes = require("./routes/communityRoutes");
+const referenceRoutes = require("./routes/referenceRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const { registerChatHandlers } = require("./socket/chatHandler");
 
@@ -77,6 +78,7 @@ app.use("/api/exams", examRoutes);
 app.use("/api/tests", testRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/communities", communityRoutes);
+app.use("/api/references", referenceRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

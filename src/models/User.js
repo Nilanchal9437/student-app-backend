@@ -74,6 +74,27 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+
+    // ── Referral System ────────────────────────────────────────────────────────
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    referralCoins: {
+      type: Number,
+      default: 0,
+      min: [0, "Referral coins cannot be negative"],
+    },
+
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
   },
   {
     timestamps: true, // createdAt, updatedAt

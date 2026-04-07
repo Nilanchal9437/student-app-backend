@@ -9,6 +9,7 @@ const {
   getProfile,
   updateProfile,
   changePassword,
+  getReferralStats,
 } = require("../controllers/userController");
 
 const { protect } = require("../middleware/auth");
@@ -35,5 +36,8 @@ router.put("/profile", protect, updateProfile);
 
 // PUT  /api/users/change-password  — change password (from profile screen security section)
 router.put("/change-password", protect, changePassword);
+
+// GET  /api/users/referral-stats  — get referral coins and count
+router.get("/referral-stats", protect, getReferralStats);
 
 module.exports = router;

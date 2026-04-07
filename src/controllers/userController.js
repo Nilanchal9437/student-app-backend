@@ -19,12 +19,12 @@ const sendTokenResponse = (user, statusCode, res, message = "Success") => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // @route   POST /api/users/register
-// @desc    Register a new student account
+// @desc    Register a new student account with optional referral
 // @access  Public
 // ─────────────────────────────────────────────────────────────────────────────
 const register = async (req, res, next) => {
   try {
-    const { fullName, email, password } = req.body;
+    const { fullName, email, password, referrerId } = req.body;
 
     // Check if email already taken
     const existing = await User.findOne({ email: email.toLowerCase().trim() });
@@ -35,17 +35,52 @@ const register = async (req, res, next) => {
       });
     }
 
+    // Validate referrer if provided
+    let referrer = null;
+    if (referrerId) {
+      referrer = await User.findById(referrerId);
+      if (!referrer) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid referrer ID. The referrer does not exist.",
+        });
+      }
+    }
+
+    // Create new user with referral info
     const user = await User.create({
       fullName: fullName?.trim() || "",
       email: email.toLowerCase().trim(),
       password,
+      referredBy: referrer ? referrer._id : null,
+      referralCode: generateReferralCode(),
     });
+
+    // Award coins to referrer
+    if (referrer) {
+      const REFERRAL_COIN_REWARD = 200; // 200 coins per successful referral
+      referrer.referralCoins = (referrer.referralCoins || 0) + REFERRAL_COIN_REWARD;
+      await referrer.save();
+
+      console.log(`[REFERRAL] User ${referrer._id} earned ${REFERRAL_COIN_REWARD} coins from referring ${user._id}`);
+    }
 
     sendTokenResponse(user, 201, res, "Account created successfully!");
   } catch (err) {
     next(err);
   }
 };
+
+// ─── Helper — generate unique referral code ───────────────────────────────────
+function generateReferralCode() {
+  // Generate a unique code like: REF-abc123xyz
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let code = "REF-";
+  for (let i = 0; i < 9; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // @route   POST /api/users/login
@@ -298,6 +333,40 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// @route   GET /api/users/referral-stats
+// @desc    Get referral statistics for current user
+// @access  Private
+// ─────────────────────────────────────────────────────────────────────────────
+const getReferralStats = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Count how many users this user has referred
+    const referralCount = await User.countDocuments({ referredBy: userId });
+
+    res.status(200).json({
+      success: true,
+      message: "Referral stats retrieved successfully",
+      data: {
+        referralCoins: user.referralCoins || 0,
+        referralCount,
+        referralCode: user.referralCode,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -306,4 +375,5 @@ module.exports = {
   getProfile,
   updateProfile,
   changePassword,
+  getReferralStats,
 };
