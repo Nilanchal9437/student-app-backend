@@ -31,7 +31,7 @@ const corsOptions = {
     if (!origin || process.env.NODE_ENV === "development") {
       return callback(null, true);
     }
-    const whitelist = ["https://your-production-domain.com"];
+    const whitelist = ["https://student-app-backend-two.vercel.app"];
     if (whitelist.includes(origin)) {
       callback(null, true);
     } else {
