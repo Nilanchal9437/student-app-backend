@@ -10,6 +10,8 @@ const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const userRoutes = require("./routes/userRoutes");
 const examRoutes = require("./routes/examRoutes");
+const termRoutes = require("./routes/termRoutes");
+const subjectRoutes = require("./routes/subjectRoutes");
 const testRoutes = require("./routes/testRoutes");
 const resultRoutes = require("./routes/resultRoutes");
 const communityRoutes = require("./routes/communityRoutes");
@@ -80,6 +82,8 @@ app.get("/health", (req, res) => {
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use("/api/users", authLimiter, userRoutes);
 app.use("/api/exams", examRoutes);
+app.use("/api/terms", termRoutes);
+app.use("/api/subjects", subjectRoutes);
 app.use("/api/tests", testRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/communities", communityRoutes);

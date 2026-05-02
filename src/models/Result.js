@@ -23,7 +23,7 @@ const resultSchema = new mongoose.Schema(
       index: true,
     },
 
-    // ── Which exam ────────────────────────────────────────────────────────────
+    // ── Which exam / term / subject ─────────────────────────────────────────
     exam: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Exam",
@@ -31,8 +31,19 @@ const resultSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Snapshot of exam name at submission time so the result stays readable
-    // even if the exam document is later renamed / deleted.
+    term: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Term",
+      index: true,
+    },
+
+    subject: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subject",
+      index: true,
+    },
+
+    // Snapshot of exam+term+subject name at submission time
     examName: {
       type: String,
       required: [true, "Exam name snapshot is required"],

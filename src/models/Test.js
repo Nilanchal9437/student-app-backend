@@ -1,25 +1,24 @@
 const mongoose = require("mongoose");
 
-// ─── Test (Question) Schema ───────────────────────────────────────────────────
-// Each document in this collection is one MCQ question belonging to an Exam.
-//
-// Relationship:  Test → Exam   (many questions belong to one exam)
-//
-// Fields:
-//   exam      — ObjectId ref to the Exam collection
-//   question  — the question text
-//   options   — exactly 4 choices (A, B, C, D)
-//   answer    — the correct option key: "A" | "B" | "C" | "D"
-//   explanation (optional) — explanation of the correct answer
-//   marks     — points awarded for a correct answer (default 1)
-// ─────────────────────────────────────────────────────────────────────────────
 const testSchema = new mongoose.Schema(
   {
-    // ── Relationship ───────────────────────────────────────────────────────────
     exam: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Exam",
       required: [true, "Exam reference is required"],
+    },
+
+    term: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Term",
+      required: [true, "Term reference is required"],
+      index: true,
+    },
+    // ── Relationship (FIXED) ──────────────────────────────────────────────────
+    subject: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subject",
+      required: [true, "Subject reference is required"],
       index: true,
     },
 
@@ -58,10 +57,7 @@ const testSchema = new mongoose.Schema(
     answer: {
       type: String,
       required: [true, "Answer is required"],
-      enum: {
-        values: ["A", "B", "C", "D"],
-        message: "Answer must be one of: A, B, C, D",
-      },
+      enum: ["A", "B", "C", "D"],
     },
 
     // ── Optional Extras ────────────────────────────────────────────────────────
@@ -77,7 +73,7 @@ const testSchema = new mongoose.Schema(
       min: [1, "Marks must be at least 1"],
     },
 
-    // ── Order hint (for displaying questions in sequence) ─────────────────────
+    // ── Order (per subject) ────────────────────────────────────────────────────
     order: {
       type: Number,
       default: 0,
@@ -90,10 +86,16 @@ const testSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-// Compound index: quickly fetch all questions for a given exam in order
-testSchema.index({ exam: 1, order: 1 });
+// ✅ FIXED INDEX (now based on subject, not exam)
+testSchema.index({ subject: 1, order: 1 });
+
+// Optional but recommended (avoid duplicate questions in same subject)
+testSchema.index(
+  { subject: 1, question: 1 },
+  { unique: false }, // change to true if needed
+);
 
 module.exports = mongoose.model("Test", testSchema);

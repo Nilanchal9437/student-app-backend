@@ -4,7 +4,7 @@ const router = express.Router();
 const {
   createQuestion,
   bulkCreateQuestions,
-  getQuestionsByExam,
+  getQuestionsBySubject,
   getQuestionById,
   updateQuestion,
   deleteQuestion,
@@ -12,20 +12,17 @@ const {
 
 const { protect, restrictTo } = require("../middleware/auth");
 
-// All test routes require authentication
 router.use(protect);
 
-// ── Any authenticated user ─────────────────────────────────────────────────────
-// GET  /api/tests?exam=<id>  — list all questions for an exam
-// GET  /api/tests/:id        — single question
-router.get("/", getQuestionsByExam);
+// GET /api/tests?subject=<subjectId>  — list questions for a subject
+// GET /api/tests/:id                  — single question
+router.get("/", getQuestionsBySubject);
 router.get("/:id", getQuestionById);
 
-// ── Admin only ─────────────────────────────────────────────────────────────────
-// POST   /api/tests          — add one question
-// POST   /api/tests/bulk     — add multiple questions
-// PUT    /api/tests/:id      — update a question
-// DELETE /api/tests/:id      — soft-delete a question
+// POST   /api/tests/bulk — bulk create (admin)
+// POST   /api/tests      — create one (admin)
+// PUT    /api/tests/:id  — update (admin)
+// DELETE /api/tests/:id  — soft-delete (admin)
 router.post("/bulk", restrictTo("admin"), bulkCreateQuestions);
 router.post("/", restrictTo("admin"), createQuestion);
 router.put("/:id", restrictTo("admin"), updateQuestion);

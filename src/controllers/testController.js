@@ -1,117 +1,23 @@
 const Test = require("../models/Test");
-const Exam = require("../models/Exam");
+const Subject = require("../models/Subject");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @route   POST /api/tests
-// @desc    Add a question to an exam
-// @body    { exam, question, options: {A,B,C,D}, answer, explanation?, marks?, order? }
-// @access  Private (admin only)
-// ─────────────────────────────────────────────────────────────────────────────
-const createQuestion = async (req, res, next) => {
-  try {
-    const { exam, question, options, answer, explanation, marks, order } = req.body;
-
-    if (!exam || !question || !options || !answer) {
-      return res.status(400).json({
-        success: false,
-        message: "exam, question, options (A-D) and answer are required.",
-      });
-    }
-
-    // Ensure the exam exists
-    const examDoc = await Exam.findById(exam);
-    if (!examDoc || !examDoc.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: "Exam not found.",
-      });
-    }
-
-    const testDoc = await Test.create({
-      exam,
-      question,
-      options,
-      answer,
-      explanation: explanation ?? "",
-      marks: marks ?? 1,
-      order: order ?? 0,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Question added successfully.",
-      data: { question: testDoc },
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// @route   POST /api/tests/bulk
-// @desc    Add multiple questions to an exam in one request
-// @body    { exam, questions: [ { question, options, answer, ... } ] }
-// @access  Private (admin only)
-// ─────────────────────────────────────────────────────────────────────────────
-const bulkCreateQuestions = async (req, res, next) => {
-  try {
-    const { exam, questions } = req.body;
-
-    if (!exam || !Array.isArray(questions) || questions.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "exam and a non-empty questions array are required.",
-      });
-    }
-
-    // Ensure the exam exists
-    const examDoc = await Exam.findById(exam);
-    if (!examDoc || !examDoc.isActive) {
-      return res.status(404).json({
-        success: false,
-        message: "Exam not found.",
-      });
-    }
-
-    const docs = questions.map((q, idx) => ({
-      exam,
-      question: q.question,
-      options: q.options,
-      answer: q.answer,
-      explanation: q.explanation ?? "",
-      marks: q.marks ?? 1,
-      order: q.order ?? idx,
-    }));
-
-    const inserted = await Test.insertMany(docs, { ordered: false });
-
-    res.status(201).json({
-      success: true,
-      message: `${inserted.length} question(s) added successfully.`,
-      data: { count: inserted.length, questions: inserted },
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// @route   GET /api/tests?exam=<examId>
-// @desc    Get all questions for a specific exam
+// @route   GET /api/tests?subject=<subjectId>
+// @desc    Get all questions for a specific subject
 // @access  Private (any authenticated user)
 // ─────────────────────────────────────────────────────────────────────────────
-const getQuestionsByExam = async (req, res, next) => {
+const getQuestionsBySubject = async (req, res, next) => {
   try {
-    const { exam } = req.query;
+    const { subject } = req.query;
 
-    if (!exam) {
+    if (!subject) {
       return res.status(400).json({
         success: false,
-        message: "exam query parameter is required.",
+        message: "subject query parameter is required.",
       });
     }
 
-    const questions = await Test.find({ exam, isActive: true })
+    const questions = await Test.find({ subject, isActive: true })
       .sort({ order: 1, createdAt: 1 })
       .select("-__v");
 
@@ -132,7 +38,10 @@ const getQuestionsByExam = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const getQuestionById = async (req, res, next) => {
   try {
-    const q = await Test.findById(req.params.id).populate("exam", "name level");
+    const q = await Test.findById(req.params.id)
+      .populate("exam", "name level")
+      .populate("term", "name")
+      .populate("subject", "subjectName");
 
     if (!q || !q.isActive) {
       return res.status(404).json({ success: false, message: "Question not found." });
@@ -142,6 +51,96 @@ const getQuestionById = async (req, res, next) => {
       success: true,
       message: "Question fetched successfully.",
       data: { question: q },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @route   POST /api/tests
+// @desc    Add a question to a subject
+// @body    { exam, term, subject, question, options:{A,B,C,D}, answer, explanation?, marks?, order? }
+// @access  Private (admin only)
+// ─────────────────────────────────────────────────────────────────────────────
+const createQuestion = async (req, res, next) => {
+  try {
+    const { exam, term, subject, question, options, answer, explanation, marks, order } = req.body;
+
+    if (!exam || !term || !subject || !question || !options || !answer) {
+      return res.status(400).json({
+        success: false,
+        message: "exam, term, subject, question, options (A-D) and answer are required.",
+      });
+    }
+
+    const subjectDoc = await Subject.findById(subject);
+    if (!subjectDoc) {
+      return res.status(404).json({ success: false, message: "Subject not found." });
+    }
+
+    const testDoc = await Test.create({
+      exam,
+      term,
+      subject,
+      question,
+      options,
+      answer,
+      explanation: explanation ?? "",
+      marks: marks ?? 1,
+      order: order ?? 0,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Question added successfully.",
+      data: { question: testDoc },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @route   POST /api/tests/bulk
+// @desc    Add multiple questions in one request
+// @body    { exam, term, subject, questions: [ { question, options, answer, ... } ] }
+// @access  Private (admin only)
+// ─────────────────────────────────────────────────────────────────────────────
+const bulkCreateQuestions = async (req, res, next) => {
+  try {
+    const { exam, term, subject, questions } = req.body;
+
+    if (!exam || !term || !subject || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "exam, term, subject and a non-empty questions array are required.",
+      });
+    }
+
+    const subjectDoc = await Subject.findById(subject);
+    if (!subjectDoc) {
+      return res.status(404).json({ success: false, message: "Subject not found." });
+    }
+
+    const docs = questions.map((q, idx) => ({
+      exam,
+      term,
+      subject,
+      question: q.question,
+      options: q.options,
+      answer: q.answer,
+      explanation: q.explanation ?? "",
+      marks: q.marks ?? 1,
+      order: q.order ?? idx,
+    }));
+
+    const inserted = await Test.insertMany(docs, { ordered: false });
+
+    res.status(201).json({
+      success: true,
+      message: `${inserted.length} question(s) added successfully.`,
+      data: { count: inserted.length, questions: inserted },
     });
   } catch (err) {
     next(err);
@@ -207,7 +206,7 @@ const deleteQuestion = async (req, res, next) => {
 module.exports = {
   createQuestion,
   bulkCreateQuestions,
-  getQuestionsByExam,
+  getQuestionsBySubject,
   getQuestionById,
   updateQuestion,
   deleteQuestion,

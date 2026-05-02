@@ -2,6 +2,8 @@ const Result = require("../models/Result");
 const TestResult = require("../models/TestResult");
 const Test = require("../models/Test");
 const Exam = require("../models/Exam");
+const Term = require("../models/Term");
+const Subject = require("../models/Subject");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // @route   POST /api/results/submit
@@ -24,7 +26,6 @@ const Exam = require("../models/Exam");
 // ─────────────────────────────────────────────────────────────────────────────
 const submitResult = async (req, res, next) => {
   try {
-    // Students only
     if (req.user.role !== "student") {
       return res.status(403).json({
         success: false,
@@ -32,44 +33,54 @@ const submitResult = async (req, res, next) => {
       });
     }
 
-    const { examId, duration, answers } = req.body;
+    const { subjectId, duration, answers } = req.body;
 
-    if (!examId || !Array.isArray(answers) || answers.length === 0 || duration == null) {
+    if (!subjectId || !Array.isArray(answers) || answers.length === 0 || duration == null) {
       return res.status(400).json({
         success: false,
-        message: "examId, duration, and a non-empty answers array are required.",
+        message: "subjectId, duration, and a non-empty answers array are required.",
       });
     }
 
-    // ── 1. Fetch exam (need name snapshot) ────────────────────────────────────
-    const exam = await Exam.findById(examId);
+    // ── Resolve exam via Subject → Term → Exam ────────────────────────────────
+    const subjectDoc = await Subject.findById(subjectId);
+    if (!subjectDoc) {
+      return res.status(404).json({ success: false, message: "Subject not found." });
+    }
+
+    const termDoc = await Term.findById(subjectDoc.term);
+    if (!termDoc) {
+      return res.status(404).json({ success: false, message: "Term not found." });
+    }
+
+    const exam = await Exam.findById(termDoc.exam);
     if (!exam || !exam.isActive) {
       return res.status(404).json({ success: false, message: "Exam not found." });
     }
 
-    // ── 2. Fetch all question documents in one query ───────────────────────────
+    // ── Fetch all question documents ──────────────────────────────────────────
     const questionIds = answers.map((a) => a.questionId);
     const questions = await Test.find({ _id: { $in: questionIds }, isActive: true });
 
     const questionMap = {};
     questions.forEach((q) => { questionMap[q._id.toString()] = q; });
 
-    // ── 3. Create the Result header ───────────────────────────────────────────
+    // ── Create the Result header ──────────────────────────────────────────────
     const result = await Result.create({
       user: req.user._id,
-      exam: examId,
-      examName: exam.name,     // snapshot
+      exam: exam._id,
+      term: termDoc._id,
+      subject: subjectDoc._id,
+      examName: `${exam.name} — ${termDoc.name} — ${subjectDoc.subjectName}`,
       duration,
       totalQuestions: answers.length,
-      // totalScore + percentage filled in after TestResult insert (step 5)
     });
 
-    // ── 4. Build and bulk-insert TestResult documents (one per question) ──────
+    // ── Build and bulk-insert TestResult documents ────────────────────────────
     let totalScore = 0;
-
     const testResultDocs = answers.map((a, idx) => {
       const qDoc = questionMap[a.questionId?.toString()];
-      if (!qDoc) return null; // question not found — skip
+      if (!qDoc) return null;
 
       const isCorrect = a.selectedAnswer === qDoc.answer;
       const point = isCorrect ? 1 : 0;
@@ -78,17 +89,12 @@ const submitResult = async (req, res, next) => {
       return {
         result: result._id,
         question: qDoc._id,
-        questionText: qDoc.question,          // snapshot
-        options: {
-          A: qDoc.options.A,                  // snapshot all 4 choices
-          B: qDoc.options.B,
-          C: qDoc.options.C,
-          D: qDoc.options.D,
-        },
+        questionText: qDoc.question,
+        options: { A: qDoc.options.A, B: qDoc.options.B, C: qDoc.options.C, D: qDoc.options.D },
         answered: a.selectedAnswer ?? null,
-        correctAnswer: qDoc.answer,           // snapshot
-        scorePoint: point,                    // 0 or 1 only
-        duration: a.duration ?? 0,            // per-question seconds
+        correctAnswer: qDoc.answer,
+        scorePoint: point,
+        duration: a.duration ?? 0,
         order: qDoc.order ?? idx,
       };
     }).filter(Boolean);
@@ -97,11 +103,10 @@ const submitResult = async (req, res, next) => {
       await TestResult.insertMany(testResultDocs, { ordered: false });
     }
 
-    // ── 5. Update Result summary with computed score ───────────────────────────
-    const percentage =
-      testResultDocs.length > 0
-        ? Math.round((totalScore / testResultDocs.length) * 100)
-        : 0;
+    // ── Update Result summary ─────────────────────────────────────────────────
+    const percentage = testResultDocs.length > 0
+      ? Math.round((totalScore / testResultDocs.length) * 100)
+      : 0;
 
     await Result.findByIdAndUpdate(result._id, {
       totalScore,
@@ -109,14 +114,13 @@ const submitResult = async (req, res, next) => {
       percentage,
     });
 
-    // ── 6. Respond ─────────────────────────────────────────────────────────────
     res.status(201).json({
       success: true,
       message: "Exam submitted successfully!",
       data: {
         result: {
           id: result._id,
-          examName: exam.name,
+          examName: result.examName,
           totalQuestions: testResultDocs.length,
           totalScore,
           percentage,
